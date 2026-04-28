@@ -124,7 +124,7 @@ export default function SablonlarPage() {
                       className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90"
                       style={{ background: "linear-gradient(135deg,#C9A84C,#A8893D)", color: "#fff" }}>
                       <span>{meta.icon}</span>
-                      {meta.label}'de Aç
+                      {meta.label}&apos;de Aç
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>

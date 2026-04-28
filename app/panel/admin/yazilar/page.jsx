@@ -101,7 +101,7 @@ export default function AdminYazilarPage() {
           <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "#C9A84C", borderTopColor: "transparent" }} />
         </div>
       ) : articles.length === 0 ? (
-        <div className="text-center py-20 text-gray-600">Henüz yazı yok. "Yeni Yazı" ile ekle.</div>
+        <div className="text-center py-20 text-gray-600">Henüz yazı yok. &quot;Yeni Yazı&quot; ile ekle.</div>
       ) : (
         <div className="space-y-2">
           {articles.map((a) => (
@@ -153,7 +153,7 @@ export default function AdminYazilarPage() {
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">Kurs *</label>
                 <select value={form.courseSlug} onChange={(e) => setForm({ ...form, courseSlug: e.target.value })} className={inputCls}>
                   {courses.length === 0
-                    ? <option value="">— Önce Admin › Kurslar'dan kurs ekle —</option>
+                    ? <option value="">— Önce Admin › Kurslar&apos;dan kurs ekle —</option>
                     : courses.map((c) => <option key={c.slug} value={c.slug}>{c.title}</option>)
                   }
                 </select>

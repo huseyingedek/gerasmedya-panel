@@ -122,7 +122,7 @@ export default function AdminVideolarPage() {
           <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "#C9A84C", borderTopColor: "transparent" }} />
         </div>
       ) : videos.length === 0 ? (
-        <div className="text-center py-20 text-gray-600">Henüz video yok. "Yeni Video" ile ekle.</div>
+        <div className="text-center py-20 text-gray-600">Henüz video yok. &quot;Yeni Video&quot; ile ekle.</div>
       ) : (
         <div className="space-y-2">
           {videos.map((v) => (
@@ -191,7 +191,7 @@ export default function AdminVideolarPage() {
             <Field label="Kurs *">
               <select value={form.courseSlug} onChange={(e) => setForm({ ...form, courseSlug: e.target.value })} className={inputCls}>
                 {courses.length === 0
-                  ? <option value="">— Önce Admin › Kurslar'dan kurs ekle —</option>
+                  ? <option value="">— Önce Admin › Kurslar&apos;dan kurs ekle —</option>
                   : courses.map((c) => <option key={c.slug} value={c.slug}>{c.title}</option>)
                 }
               </select>
@@ -242,7 +242,7 @@ export default function AdminVideolarPage() {
                     </label>
                   </div>
                 )}
-                <p className="text-xs text-gray-700">Veya elle dosya adı girin (R2'de zaten varsa):</p>
+                <p className="text-xs text-gray-700">Veya elle dosya adı girin (R2&apos;de zaten varsa):</p>
                 <input value={form.filename} onChange={(e) => setForm({ ...form, filename: e.target.value })}
                   placeholder="dijital-kusatma-nedir.mp4" className={inputCls} />
               </div>

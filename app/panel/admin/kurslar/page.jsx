@@ -95,7 +95,7 @@ export default function AdminKurslar() {
           <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "#C9A84C", borderTopColor: "transparent" }} />
         </div>
       ) : courses.length === 0 ? (
-        <div className="text-center py-20 text-gray-600 text-sm">Henüz kurs yok. "Yeni Kurs" ile ekle.</div>
+        <div className="text-center py-20 text-gray-600 text-sm">Henüz kurs yok. &quot;Yeni Kurs&quot; ile ekle.</div>
       ) : (
         <div className="space-y-8">
           {grouped.map(({ val, label, list }) => (

@@ -283,7 +283,7 @@ export default function DijitalKusatmaPage() {
             {/* Genel bakış */}
             {activeTab === "video" && (
               <div className="space-y-4 text-sm text-gray-500 leading-relaxed">
-                <p>Bu stratejide Meta Ads, Google Ads ve YouTube'u senkronize kullanarak müşterinin her dijital adımında görünür olmayı öğreneceksiniz.</p>
+                <p>Bu stratejide Meta Ads, Google Ads ve YouTube&apos;u senkronize kullanarak müşterinin her dijital adımında görünür olmayı öğreneceksiniz.</p>
                 <div className="grid grid-cols-3 gap-3 py-4">
                   {[
                     { label: "Video", val: `${videos.length} ders` },
