@@ -14,7 +14,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(""); setLoading(true);
-    try { await login(email, password); router.push("/panel/dashboard"); }
+    try { await login(email, password); router.push("/panel/egitim"); }
     catch (err) { setError(err.message || "Giriş başarısız. E-posta veya şifrenizi kontrol edin."); }
     finally { setLoading(false); }
   };

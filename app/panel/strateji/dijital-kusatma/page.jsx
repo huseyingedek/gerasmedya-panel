@@ -1,112 +1,98 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import VideoPlayer from "@/components/VideoPlayer";
+import { progressApi } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const STRATEGY = "dijital-kusatma";
 
 function getToken() {
   if (typeof window === "undefined") return "";
   return localStorage.getItem("geras_token") || "";
 }
 
-// ── Yazılı dersler (kendi içeriğinizi buraya ekleyin)
 const articles = [
   {
     id: "a1",
-    no: "01",
-    title: "Dijital Kuşatma Stratejisi — Temel Kavramlar",
-    duration: "5 dk okuma",
-    desc: "Çok kanallı pazarlama nedir, neden tek kanalda kalmak sizi sınırlar ve Dijital Kuşatma mantığı nasıl çalışır.",
+    title: "Dijital Kuşatma — Temel Kavramlar",
+    duration: "5 dk",
     paragraphs: [
       { type: "h2", text: "Dijital Kuşatma Nedir?" },
-      { type: "p", text: "Dijital Kuşatma, müşterinizin internette gittiği her yerde markanızın karşısına çıkmasını sağlayan çok kanallı bir reklam stratejisidir." },
+      { type: "p", text: "Müşterinizin internette gittiği her yerde markanızın karşısına çıkmasını sağlayan çok kanallı bir reklam stratejisidir." },
       { type: "h2", text: "Neden Tek Kanal Yetmez?" },
       { type: "bullet", text: "Ortalama kullanıcı günde 6+ farklı platformda vakit geçirir" },
       { type: "bullet", text: "Satın alma kararı verilmeden önce marka ortalama 7 kez görülür" },
       { type: "bullet", text: "Rakipleriniz de aynı kanalda — dikkat rekabeti çok yüksek" },
-      { type: "h2", text: "Çözüm: Kendinizle Rekabet Edin" },
-      { type: "p", text: "Rakibinizi geçmeye çalışmak yerine, müşterinin her adımında siz olun. Instagram'da, Google'da, YouTube'da — o kadar çok yerde görünsünüz ki müşteri sizi kaçırmak istese bile kaçamasın." },
+      { type: "h2", text: "Çözüm" },
+      { type: "p", text: "Rakibinizi geçmeye çalışmak yerine, müşterinin her adımında siz olun." },
     ],
   },
   {
     id: "a2",
-    no: "02",
     title: "Kanal Stratejisi: Meta + Google + YouTube",
-    duration: "8 dk okuma",
-    desc: "Her kanalın rolü nedir, hangi bütçeyi nereye ayırmalısınız ve kanallar arasındaki sinerjiyi nasıl kurarsınız.",
+    duration: "8 dk",
     paragraphs: [
       { type: "h2", text: "Her Kanalın Rolü" },
-      { type: "bold", text: "Meta Ads (Instagram & Facebook):" },
-      { type: "p", text: "Keşif ve marka bilinirliği aşaması. Henüz ürününüzü aramayan ama potansiyel müşteri olan kişilere ulaşırsınız." },
-      { type: "bold", text: "Google Ads:" },
-      { type: "p", text: "Satın alma niyeti yüksek kişilere ulaşma. Ürününüzü aktif olarak arayan kişilerin tam karşısına çıkarsınız." },
-      { type: "bold", text: "YouTube Ads:" },
-      { type: "p", text: "Güven inşası ve derinleşme. Video içerikle marka hikayenizi anlatır, izleyiciyle duygusal bağ kurarsınız." },
-      { type: "h2", text: "Bütçe Dağılımı (Örnek)" },
+      { type: "bold", text: "Meta Ads — Keşif aşaması" },
+      { type: "p", text: "Henüz ürününüzü aramayan ama potansiyel müşteri olan kişilere ulaşırsınız." },
+      { type: "bold", text: "Google Ads — Niyet aşaması" },
+      { type: "p", text: "Ürününüzü aktif olarak arayan kişilerin tam karşısına çıkarsınız." },
+      { type: "bold", text: "YouTube Ads — Güven aşaması" },
+      { type: "p", text: "Video içerikle marka hikayenizi anlatır, izleyiciyle duygusal bağ kurarsınız." },
       { type: "table", rows: [["Kanal","Oran","Amaç"],["Meta Ads","40%","Keşif + Retargeting"],["Google Ads","40%","Niyet + Dönüşüm"],["YouTube","20%","Güven + Bilinirlik"]] },
     ],
   },
   {
     id: "a3",
-    no: "03",
     title: "Bütçeyi Kanallara Nasıl Dağıtırım?",
-    duration: "6 dk okuma",
-    desc: "Aylık reklam bütçenizi verimli dağıtmak için formül ve pratik örnekler.",
+    duration: "6 dk",
     paragraphs: [
-      { type: "h2", text: "Başlangıç Bütçesi Formülü" },
-      { type: "bold", text: "Test Aşaması (İlk 2 Ay):" },
+      { type: "h2", text: "İlk 2 Ay — Test Aşaması" },
       { type: "bullet", text: "%60 Meta Ads — geniş kitlede keşif" },
       { type: "bullet", text: "%30 Google Ads — marka + ürün aramaları" },
       { type: "bullet", text: "%10 YouTube — brand awareness" },
-      { type: "bold", text: "Optimizasyon Aşaması (3. Ay+):" },
-      { type: "p", text: "Hangi kanal daha düşük maliyetle dönüşüm getiriyorsa bütçeyi oraya kaydırın. Retargeting'e toplam bütçenin %20-30'unu ayırın." },
-      { type: "h2", text: "Aylık 10.000₺ Bütçe Örneği" },
-      { type: "table", rows: [["Kanal","Tutar","Kampanya Türü"],["Meta Keşif","3.000₺","Geniş kitle"],["Meta Retargeting","1.500₺","Site ziyaretçileri"],["Google Arama","3.000₺","Ürün aramaları"],["Google Display","1.000₺","Rakip site ziyaretçileri"],["YouTube","1.500₺","Brand film"]] },
+      { type: "h2", text: "Örnek: Aylık 10.000₺ Bütçe" },
+      { type: "table", rows: [["Kanal","Tutar"],["Meta Keşif","3.000₺"],["Meta Retargeting","1.500₺"],["Google Arama","3.000₺"],["Google Display","1.000₺"],["YouTube","1.500₺"]] },
     ],
   },
   {
     id: "a4",
-    no: "📋",
     title: "Müşteri Yolculuğu Haritası",
     duration: "Şablon",
-    desc: "Müşterinizin temas noktalarını haritalayın. Hangi mesaj, hangi kanalda, hangi aşamada verilmeli?",
     isTemplate: true,
     paragraphs: [
       { type: "h2", text: "Aşama 1 — Farkındalık" },
-      { type: "p", text: "Müşteri henüz sizi tanımıyor. Hedef: ilk temas. Kanal: Meta Keşif, YouTube. Mesaj: Sorununu anlatan, çözüm vaat eden içerikler." },
+      { type: "p", text: "Kanal: Meta Keşif, YouTube. Mesaj: Sorununu anlatan, çözüm vaat eden içerikler." },
       { type: "h2", text: "Aşama 2 — İlgi" },
-      { type: "p", text: "Reklamınızı gördü, siteye girdi ama satın almadı. Kanal: Meta + Google Retargeting. Mesaj: Sosyal kanıt, referanslar." },
+      { type: "p", text: "Kanal: Meta + Google Retargeting. Mesaj: Sosyal kanıt, referanslar." },
       { type: "h2", text: "Aşama 3 — Karar" },
-      { type: "p", text: "Alternatifleri karşılaştırıyor. Kanal: Google Arama, YouTube. Mesaj: Neden siz? Teklif, garanti, aciliyet." },
+      { type: "p", text: "Kanal: Google Arama, YouTube. Mesaj: Neden siz? Teklif, garanti." },
       { type: "h2", text: "Aşama 4 — Satın Alma" },
-      { type: "p", text: "Satın almaya hazır. Kanal: Google Alışveriş, Remarketing. Mesaj: Doğrudan CTA, özel indirim." },
+      { type: "p", text: "Kanal: Google Alışveriş, Remarketing. Mesaj: Doğrudan CTA, özel indirim." },
     ],
   },
 ];
 
 function ArticleContent({ paragraphs }) {
   return (
-    <div className="space-y-2 text-sm text-gray-400 leading-relaxed">
+    <div className="space-y-3 text-sm text-gray-400 leading-relaxed">
       {paragraphs.map((p, i) => {
-        if (p.type === "h2") return <h4 key={i} className="text-white font-black text-base mt-4 mb-1 first:mt-0">{p.text}</h4>;
-        if (p.type === "bold") return <p key={i} className="font-semibold text-gray-200">{p.text}</p>;
+        if (p.type === "h2") return <p key={i} className="text-white font-bold text-sm mt-5 first:mt-0">{p.text}</p>;
+        if (p.type === "bold") return <p key={i} className="text-gray-200 font-semibold">{p.text}</p>;
         if (p.type === "bullet") return (
-          <div key={i} className="flex gap-2">
-            <span style={{ color: "#D4B86A" }}>•</span>
+          <div key={i} className="flex gap-2 pl-2">
+            <span style={{ color: "#D4B86A" }}>·</span>
             <span>{p.text}</span>
           </div>
         );
         if (p.type === "table") return (
-          <div key={i} className="overflow-x-auto my-3">
-            <table className="w-full text-xs border-collapse">
+          <div key={i} className="overflow-x-auto rounded-xl mt-2" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+            <table className="w-full text-xs">
               {p.rows.map((row, ri) => (
-                <tr key={ri} className={ri === 0 ? "border-b border-white/10" : "border-b border-white/5"}>
+                <tr key={ri} style={{ borderBottom: ri < p.rows.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
                   {row.map((cell, ci) => (
-                    <td
-                      key={ci}
-                      className={`px-3 py-2 ${ri === 0 ? "font-bold text-gray-300 uppercase tracking-wider" : "text-gray-500"}`}
-                    >
+                    <td key={ci} className={`px-4 py-2.5 ${ri === 0 ? "text-gray-500 uppercase tracking-wider text-xs font-semibold bg-white/[0.02]" : "text-gray-400"}`}>
                       {cell}
                     </td>
                   ))}
@@ -121,241 +107,389 @@ function ArticleContent({ paragraphs }) {
   );
 }
 
-function ArticleCard({ article }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="card overflow-hidden">
-      <button onClick={() => setExpanded(!expanded)} className="w-full text-left p-5 flex items-start gap-4 group">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 mt-0.5"
-          style={{ background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.25)", color: "#D4B86A" }}
-        >
-          {article.no}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <h3 className="font-bold text-white text-sm group-hover:text-gold-400 transition-colors leading-snug">
-              {article.title}
-            </h3>
-            {article.isTemplate && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: "rgba(201,168,76,0.15)", border: "1px solid rgba(201,168,76,0.25)", color: "#D4B86A" }}>
-                Şablon
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 mb-1">{article.desc}</p>
-          <p className="text-xs" style={{ color: "#D4B86A" }}>📖 {article.duration}</p>
-        </div>
-        <div
-          className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-600 group-hover:text-gray-300 transition-all"
-          style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
-        >
-          ▾
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="border-t border-white/[0.06] px-5 py-5">
-          <ArticleContent paragraphs={article.paragraphs} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function DijitalKusatmaPage() {
-  const [activeTab, setActiveTab] = useState("video");
-  const [videos, setVideos] = useState([]);
-  const [videoLoading, setVideoLoading] = useState(true);
-  const [activeVideo, setActiveVideo] = useState(null);
+  const [activeTab,        setActiveTab]        = useState("video");
+  const [videos,           setVideos]           = useState([]);
+  const [videoLoading,     setVideoLoading]     = useState(true);
+  const [activeVideo,      setActiveVideo]      = useState(null);
+  const [expandedArticle,  setExpandedArticle]  = useState(null);
+  const [completedSlugs,   setCompletedSlugs]   = useState(new Set());
+  const [toggleLoading,    setToggleLoading]    = useState(null);
+  const [videoProgressMap, setVideoProgressMap] = useState({});
 
-  const levelColors = {
-    "Başlangıç": { bg: "rgba(110,231,183,0.12)", border: "rgba(110,231,183,0.25)", text: "#6ee7b7" },
-    "Orta":      { bg: "rgba(201,168,76,0.12)",  border: "rgba(201,168,76,0.25)",  text: "#D4B86A" },
-    "İleri":     { bg: "rgba(239,68,68,0.12)",   border: "rgba(239,68,68,0.25)",   text: "#fca5a5" },
-  };
+  const allContent    = [...videos.map((v) => v.slug), ...articles.map((a) => a.id)];
+  const completedCount = allContent.filter((s) => completedSlugs.has(s)).length;
+  const progressPct   = allContent.length > 0 ? Math.round((completedCount / allContent.length) * 100) : 0;
 
   useEffect(() => {
-    fetch(`${API_URL}/api/videos?strategy=dijital-kusatma`, {
+    progressApi.get(STRATEGY).then((d) => {
+      const completed = new Set();
+      const map = {};
+      d.progress.forEach((p) => {
+        if (p.completed) completed.add(p.slug);
+        if (p.type === "video") map[p.slug] = { position: p.position, watchPercent: p.watchPercent };
+      });
+      setCompletedSlugs(completed);
+      setVideoProgressMap(map);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/videos?strategy=${STRATEGY}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
       .then((r) => r.json())
-      .then((data) => {
-        setVideos(data.videos || []);
-        if (data.videos?.length) setActiveVideo(data.videos[0].slug);
+      .then((d) => {
+        setVideos(d.videos || []);
+        if (d.videos?.length) setActiveVideo(d.videos[0].slug);
       })
-      .catch(() => setVideos([]))
+      .catch(() => {})
       .finally(() => setVideoLoading(false));
+  }, []);
+
+  const handleToggle = useCallback(async (slug, type) => {
+    setToggleLoading(slug);
+    try {
+      const res = await progressApi.toggle(slug, type, STRATEGY);
+      setCompletedSlugs((prev) => {
+        const next = new Set(prev);
+        res.completed ? next.add(slug) : next.delete(slug);
+        return next;
+      });
+    } catch {}
+    finally { setToggleLoading(null); }
   }, []);
 
   const currentVideo = videos.find((v) => v.slug === activeVideo);
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto">
+    /* Sayfa — full height, flex col */
+    <div className="flex flex-col min-h-screen">
 
-      {/* Geri */}
-      <Link href="/panel/strateji" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-300 transition-colors mb-6">
-        ← Stratejilere dön
-      </Link>
+      {/* ── Top bar ── */}
+      <div
+        className="sticky top-0 z-20 px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0"
+        style={{ background: "rgba(10,10,10,0.97)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <Link href="/panel/egitim" className="text-gray-600 hover:text-gray-300 transition-colors text-sm flex items-center gap-2">
+          ← Eğitimlere dön
+        </Link>
 
-      {/* Hero */}
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-4"
-          style={{ background: "rgba(201,168,76,0.15)", border: "1px solid rgba(201,168,76,0.3)", color: "#D4B86A" }}>
-          🔱 Strateji #1
-        </div>
-        <h1 className="text-2xl md:text-4xl font-black mb-3 leading-tight">Dijital Kuşatma Stratejisi</h1>
-        <p className="text-gray-400 text-sm md:text-base leading-relaxed max-w-2xl">
-          Müşteriniz nereye baksa sizi görsün. Instagram&apos;da, Google&apos;da — kendinizle rekabet edin, rakiplerinizle değil.
-        </p>
-      </div>
+        {/* Kurs başlığı — ortada */}
+        <p className="hidden md:block text-white text-sm font-semibold truncate max-w-xs">Dijital Kuşatma Stratejisi</p>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
-        {[
-          { icon: "📹", label: "Video", value: `${videos.length} ders` },
-          { icon: "📄", label: "Yazı", value: `${articles.length} ders` },
-          { icon: "⏱️", label: "Süre", value: "~55 dk" },
-        ].map((s) => (
-          <div key={s.label} className="card p-3 md:p-4 text-center">
-            <div className="text-xl mb-1">{s.icon}</div>
-            <p className="text-xs text-gray-600 mb-0.5">{s.label}</p>
-            <p className="text-sm font-black text-white">{s.value}</p>
+        {/* İlerleme */}
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="w-28 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${progressPct}%`,
+                  background: progressPct === 100 ? "#34d399" : "linear-gradient(90deg,#C9A84C,#D4B86A)",
+                }}
+              />
+            </div>
+            <span className="text-xs text-gray-600">{completedCount}/{allContent.length}</span>
           </div>
-        ))}
+          <span className="text-xs font-bold" style={{ color: progressPct === 100 ? "#34d399" : "#D4B86A" }}>
+            %{progressPct}
+          </span>
+        </div>
       </div>
 
-      {/* Tablar */}
-      <div className="flex gap-1 p-1 rounded-xl mb-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-        {[
-          { key: "video", label: "📹 Videolar", count: videos.length },
-          { key: "yazi",  label: "📄 Yazılar & Şablonlar", count: articles.length },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
-              activeTab === tab.key ? "text-white shadow-lg" : "text-gray-500 hover:text-gray-300"
-            }`}
-            style={activeTab === tab.key ? { background: "linear-gradient(135deg, #C9A84C, #A8893D)" } : {}}
-          >
-            {tab.label}
-            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? "bg-white/20 text-white" : "bg-white/5 text-gray-600"}`}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
-      </div>
+      {/* ── Ana içerik: sol video + sağ panel ── */}
+      <div className="flex flex-1 min-h-0">
 
-      {/* ── Video Tab ── */}
-      {activeTab === "video" && (
-        <div>
-          {videoLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#C9A84C", borderTopColor: "transparent" }} />
-            </div>
-          ) : videos.length === 0 ? (
-            <div className="card p-10 text-center">
-              <p className="text-4xl mb-3">🎬</p>
-              <p className="text-gray-400 font-semibold mb-1">Videolar hazırlanıyor</p>
-              <p className="text-gray-600 text-sm">Yakında burada olacak.</p>
-            </div>
-          ) : (
-            <div className="grid lg:grid-cols-3 gap-4">
+        {/* SOL — video + alt bilgi */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
 
-              {/* Ana player — sol */}
-              <div className="lg:col-span-2">
-                {currentVideo && (
-                  <div>
-                    <VideoPlayer slug={currentVideo.slug} title={currentVideo.title} />
-                    <div className="mt-4">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        {currentVideo.level && (() => {
-                          const lc = levelColors[currentVideo.level] || levelColors["Orta"];
-                          return (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: lc.bg, border: `1px solid ${lc.border}`, color: lc.text }}>
-                              {currentVideo.level}
-                            </span>
-                          );
-                        })()}
-                        {!currentVideo.available && (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-white/5 text-gray-600 border border-white/10">
-                            Yakında
-                          </span>
+          {/* Video */}
+          <div className="w-full bg-black flex-shrink-0">
+            {videoLoading ? (
+              <div className="flex items-center justify-center" style={{ aspectRatio: "16/9" }}>
+                <div className="w-6 h-6 rounded-full border-2 animate-spin"
+                  style={{ borderColor: "#C9A84C", borderTopColor: "transparent" }} />
+              </div>
+            ) : !currentVideo ? (
+              <div className="flex items-center justify-center text-gray-600 text-sm" style={{ aspectRatio: "16/9" }}>
+                Videolar yakında eklenecek.
+              </div>
+            ) : (
+              <VideoPlayer
+                slug={currentVideo.slug}
+                strategy={STRATEGY}
+                title={currentVideo.title}
+                savedPosition={videoProgressMap[currentVideo.slug]?.position || 0}
+                savedPercent={videoProgressMap[currentVideo.slug]?.watchPercent || 0}
+                onComplete={(slug) => setCompletedSlugs((prev) => new Set([...prev, slug]))}
+              />
+            )}
+          </div>
+
+          {/* Alt: Tab + içerik */}
+          <div className="px-6 md:px-8 py-6 max-w-3xl">
+
+            {/* Video bilgisi */}
+            {currentVideo && (
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-white font-bold text-lg leading-snug mb-1">{currentVideo.title}</p>
+                  <p className="text-gray-600 text-sm">{currentVideo.desc}</p>
+                </div>
+                <button
+                  onClick={() => handleToggle(currentVideo.slug, "video")}
+                  disabled={toggleLoading === currentVideo.slug}
+                  className={`flex-shrink-0 flex items-center gap-2 text-sm font-medium transition-all px-4 py-2 rounded-lg ${
+                    completedSlugs.has(currentVideo.slug) ? "text-green-400" : "text-gray-500 hover:text-white"
+                  }`}
+                  style={completedSlugs.has(currentVideo.slug)
+                    ? { background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }
+                    : { border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  <span className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                    completedSlugs.has(currentVideo.slug) ? "border-green-400 bg-green-400" : "border-gray-600"
+                  }`}>
+                    {completedSlugs.has(currentVideo.slug) && (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  {completedSlugs.has(currentVideo.slug) ? "Tamamlandı" : "Tamamlandı işaretle"}
+                </button>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <div className="flex gap-5 border-b mb-6" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              {[
+                { key: "video", label: "Genel Bakış" },
+                { key: "yazi",  label: "Yazılar & Şablonlar" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`pb-3 text-sm font-semibold transition-all border-b-2 -mb-px ${
+                    activeTab === tab.key ? "text-white" : "text-gray-600 hover:text-gray-400 border-transparent"
+                  }`}
+                  style={activeTab === tab.key ? { borderBottomColor: "#C9A84C" } : {}}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Genel bakış */}
+            {activeTab === "video" && (
+              <div className="space-y-4 text-sm text-gray-500 leading-relaxed">
+                <p>Bu stratejide Meta Ads, Google Ads ve YouTube'u senkronize kullanarak müşterinin her dijital adımında görünür olmayı öğreneceksiniz.</p>
+                <div className="grid grid-cols-3 gap-3 py-4">
+                  {[
+                    { label: "Video", val: `${videos.length} ders` },
+                    { label: "Yazı", val: `${articles.length} kaynak` },
+                    { label: "Süre", val: "~55 dk" },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-xl p-4 text-center"
+                      style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
+                      <p className="text-white font-bold text-lg">{s.val}</p>
+                      <p className="text-gray-600 text-xs mt-0.5">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 pt-6 border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                  <p className="text-gray-600 text-sm mb-2">Bu stratejiyi sizin için uygulamamızı ister misiniz?</p>
+                  <a href="https://gerasmedya.com/iletisim" target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-semibold hover:opacity-80 transition-opacity" style={{ color: "#D4B86A" }}>
+                    Ücretsiz görüşme al →
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Yazılar */}
+            {activeTab === "yazi" && (
+              <div className="space-y-2">
+                {articles.map((article) => {
+                  const done = completedSlugs.has(article.id);
+                  const open = expandedArticle === article.id;
+                  return (
+                    <div key={article.id} className="rounded-2xl overflow-hidden"
+                      style={{ border: "1px solid rgba(255,255,255,0.06)", background: done ? "rgba(52,211,153,0.03)" : "rgba(255,255,255,0.02)" }}>
+                      <div className="flex items-center gap-4 px-5 py-4">
+                        <button onClick={() => handleToggle(article.id, "article")}
+                          disabled={toggleLoading === article.id}
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                            done ? "border-transparent bg-green-500" : "border-gray-700 hover:border-gray-500"
+                          }`}>
+                          {done && (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                              <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                        <button onClick={() => setExpandedArticle(open ? null : article.id)}
+                          className="flex-1 flex items-center gap-3 text-left min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className={`text-sm font-medium ${done ? "text-gray-600 line-through" : "text-white"}`}>
+                                {article.title}
+                              </p>
+                              {article.isTemplate && (
+                                <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                                  style={{ background: "rgba(201,168,76,0.12)", color: "#D4B86A" }}>Şablon</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-700 mt-0.5">📖 {article.duration}</p>
+                          </div>
+                          <span className="text-gray-700 text-xs flex-shrink-0"
+                            style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
+                        </button>
+                      </div>
+                      {open && (
+                        <div className="px-5 pb-6 border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                          <div className="pt-5 pl-9">
+                            <ArticleContent paragraphs={article.paragraphs} />
+                            {!done && (
+                              <button onClick={() => handleToggle(article.id, "article")}
+                                className="mt-6 flex items-center gap-2 text-xs text-gray-600 hover:text-gray-400 transition-colors">
+                                <span className="w-4 h-4 rounded-full border border-gray-700 flex items-center justify-center" />
+                                Tamamlandı olarak işaretle
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* SAĞ — kurs içeriği paneli (Udemy gibi) */}
+        <div
+          className="hidden lg:flex flex-col w-80 xl:w-96 flex-shrink-0 overflow-y-auto border-l"
+          style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.015)" }}
+        >
+          {/* Panel başlık */}
+          <div className="px-5 py-4 border-b flex-shrink-0"
+            style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+            <p className="text-white font-bold text-sm">Kurs İçeriği</p>
+            <p className="text-gray-600 text-xs mt-0.5">
+              {videos.length} video · {articles.length} yazı
+            </p>
+          </div>
+
+          {/* Video listesi */}
+          <div className="flex-1">
+            {/* Bölüm başlığı */}
+            <div className="px-5 py-3 border-b"
+              style={{ borderColor: "rgba(255,255,255,0.04)", background: "rgba(255,255,255,0.02)" }}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Videolar</p>
+            </div>
+
+            {videoLoading ? (
+              <div className="flex justify-center py-10">
+                <div className="w-5 h-5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: "#C9A84C", borderTopColor: "transparent" }} />
+              </div>
+            ) : (
+              <div>
+                {videos.map((v, i) => {
+                  const done   = completedSlugs.has(v.slug);
+                  const active = activeVideo === v.slug;
+                  const pct    = videoProgressMap[v.slug]?.watchPercent || 0;
+                  return (
+                    <button
+                      key={v.slug}
+                      onClick={() => setActiveVideo(v.slug)}
+                      className="w-full text-left flex items-start gap-3 px-5 py-4 transition-all border-b"
+                      style={{
+                        borderColor: "rgba(255,255,255,0.04)",
+                        background: active
+                          ? "rgba(201,168,76,0.07)"
+                          : "transparent",
+                      }}
+                    >
+                      {/* Numara / ikon */}
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5 ${
+                        done ? "bg-green-500" : active ? "bg-yellow-900/60" : "bg-white/5"
+                      }`}
+                        style={active && !done ? { border: `1px solid #C9A84C`, color: "#C9A84C" } : {}}>
+                        {done ? (
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        ) : active ? "▶" : (
+                          <span className="text-gray-600">{i + 1}</span>
                         )}
                       </div>
-                      <h2 className="text-lg font-black text-white mb-1">{currentVideo.title}</h2>
-                      <p className="text-sm text-gray-500 leading-relaxed">{currentVideo.desc}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Video listesi — sağ */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Tüm Videolar</p>
-                {videos.map((v, i) => (
-                  <button
-                    key={v.slug}
-                    onClick={() => setActiveVideo(v.slug)}
-                    className={`w-full text-left p-3 rounded-xl flex items-start gap-3 transition-all duration-200 ${
-                      activeVideo === v.slug
-                        ? "border"
-                        : "hover:bg-white/5"
-                    }`}
-                    style={activeVideo === v.slug
-                      ? { background: "rgba(201,168,76,0.10)", border: "1px solid rgba(201,168,76,0.25)" }
-                      : { border: "1px solid transparent" }
-                    }
-                  >
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0"
-                      style={activeVideo === v.slug
-                        ? { background: "linear-gradient(135deg, #C9A84C, #A8893D)", color: "white" }
-                        : { background: "rgba(255,255,255,0.05)", color: "#888" }
-                      }
+                      {/* Başlık + süre + progress */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium leading-snug ${done ? "text-gray-600" : active ? "text-white" : "text-gray-400"}`}>
+                          {v.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-700">🎬 {v.duration}</span>
+                        </div>
+                        {/* Mini progress bar */}
+                        {pct > 0 && !done && (
+                          <div className="mt-1.5 w-full h-0.5 rounded-full bg-white/8">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "#C9A84C" }} />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* Yazılar bölümü */}
+                <div className="px-5 py-3 border-b border-t mt-1"
+                  style={{ borderColor: "rgba(255,255,255,0.04)", background: "rgba(255,255,255,0.02)" }}>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Yazılar & Şablonlar</p>
+                </div>
+
+                {articles.map((a) => {
+                  const done = completedSlugs.has(a.id);
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => { setActiveTab("yazi"); setExpandedArticle(a.id); }}
+                      className="w-full text-left flex items-start gap-3 px-5 py-4 transition-all border-b hover:bg-white/[0.02]"
+                      style={{ borderColor: "rgba(255,255,255,0.04)" }}
                     >
-                      {v.available ? (activeVideo === v.slug ? "▶" : i + 1) : "🔒"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold leading-snug ${activeVideo === v.slug ? "text-white" : "text-gray-400"}`}>
-                        {v.title}
-                      </p>
-                      <p className="text-xs text-gray-700 mt-0.5">{v.duration}</p>
-                    </div>
-                  </button>
-                ))}
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${done ? "bg-green-500" : "bg-white/5"}`}>
+                        {done ? (
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        ) : <span className="text-gray-600 text-xs">📄</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium leading-snug ${done ? "text-gray-600" : "text-gray-400"}`}>
+                          {a.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-700">📖 {a.duration}</span>
+                          {a.isTemplate && (
+                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(201,168,76,0.1)", color: "#C9A84C" }}>
+                              Şablon
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Yazı Tab ── */}
-      {activeTab === "yazi" && (
-        <div className="space-y-3">
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
-        </div>
-      )}
-
-      {/* CTA */}
-      <div className="mt-10 p-5 md:p-6 rounded-2xl" style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.2)" }}>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex-1">
-            <p className="font-bold text-white mb-1">Bu stratejiyi sizin için uygulayalım mı?</p>
-            <p className="text-sm text-gray-500">Geras Medya ekibi olarak Dijital Kuşatma stratejisini işinize özel kurabiliriz.</p>
+            )}
           </div>
-          <a href="https://gerasmedya.com/iletisim" target="_blank" rel="noopener noreferrer"
-            className="btn-primary px-5 py-2.5 rounded-xl text-white text-sm font-bold flex-shrink-0">
-            Ücretsiz Görüşme Al →
-          </a>
         </div>
-      </div>
 
+      </div>
     </div>
   );
 }
