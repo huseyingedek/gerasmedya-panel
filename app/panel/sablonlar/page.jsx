@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { articlesApi } from "@/lib/api";
+import Pagination from "@/app/panel/components/Pagination";
+
+const PAGE_SIZE = 9;
 
 const FILE_TYPE_META = {
   notion:  { icon: "📓", label: "Notion",          color: "#ffffff" },
@@ -14,20 +17,34 @@ const FILE_TYPE_META = {
 };
 
 export default function SablonlarPage() {
-  const [templates, setTemplates] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [filter,    setFilter]    = useState("Tümü");
+  const [templates,  setTemplates]  = useState([]);
+  const [allCats,    setAllCats]    = useState(["Tümü"]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading,    setLoading]    = useState(true);
+  const [filter,     setFilter]     = useState("Tümü");
+  const [page,       setPage]       = useState(1);
 
-  useEffect(() => {
-    articlesApi.get("sablonlar")
-      .then((d) => setTemplates(d.articles || []))
+  const load = (p = 1) => {
+    setLoading(true);
+    articlesApi.get("sablonlar", p, PAGE_SIZE)
+      .then((d) => {
+        const items = d.articles || [];
+        setTemplates(items);
+        setTotalPages(d.totalPages || 1);
+        // Kategori listesini yalnızca ilk yüklemede kur
+        if (p === 1) {
+          setAllCats(["Tümü", ...Array.from(new Set(items.map((t) => getBlock(t, "category")).filter(Boolean)))]);
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(1); }, []);
 
   const getBlock = (t, type) => t.content?.find?.((b) => b.type === type)?.text || "";
 
-  const cats = ["Tümü", ...Array.from(new Set(templates.map((t) => getBlock(t, "category")).filter(Boolean)))];
+  // Kategori filtresi sunucudan gelen mevcut sayfa üzerinde çalışır
   const filtered = filter === "Tümü" ? templates : templates.filter((t) => getBlock(t, "category") === filter);
 
   return (
@@ -52,10 +69,10 @@ export default function SablonlarPage() {
       </div>
 
       {/* Kategori filtresi */}
-      {cats.length > 1 && (
+      {allCats.length > 1 && (
         <div className="flex gap-2 flex-wrap mb-8">
-          {cats.map((cat) => (
-            <button key={cat} onClick={() => setFilter(cat)}
+          {allCats.map((cat) => (
+            <button key={cat} onClick={() => { setFilter(cat); setPage(1); load(1); }}
               className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
               style={filter === cat
                 ? { background: "rgba(201,168,76,0.18)", color: "#D4B86A", border: "1px solid rgba(201,168,76,0.4)" }
@@ -141,6 +158,12 @@ export default function SablonlarPage() {
           })}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onChange={(p) => { setPage(p); load(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+      />
 
       {!loading && filtered.length > 0 && (
         <div className="mt-10 rounded-2xl p-6 text-center"

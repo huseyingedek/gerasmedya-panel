@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { adminApi } from "@/lib/api";
+import Pagination from "@/app/panel/components/Pagination";
+
+const PAGE_SIZE = 20;
 
 const COURSE_SLUG = "ipuclari";
 
@@ -19,22 +22,29 @@ const EMPTY = {
 };
 
 export default function AdminIpuclariPage() {
-  const [tips,    setTips]    = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modal,   setModal]   = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form,    setForm]    = useState(EMPTY);
-  const [saving,  setSaving]  = useState(false);
+  const [tips,       setTips]       = useState([]);
+  const [total,      setTotal]      = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading,    setLoading]    = useState(true);
+  const [modal,      setModal]      = useState(false);
+  const [editing,    setEditing]    = useState(null);
+  const [form,       setForm]       = useState(EMPTY);
+  const [saving,     setSaving]     = useState(false);
+  const [page,       setPage]       = useState(1);
 
-  const load = () => {
+  const load = (p = 1) => {
     setLoading(true);
-    adminApi.getArticles(COURSE_SLUG)
-      .then((d) => setTips(d.articles || []))
+    adminApi.getArticles(COURSE_SLUG, p, PAGE_SIZE)
+      .then((d) => {
+        setTips(d.articles || []);
+        setTotal(d.total || 0);
+        setTotalPages(d.totalPages || 1);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
 
   const openCreate = () => { setForm(EMPTY); setEditing(null); setModal(true); };
   const openEdit = (t) => {
@@ -72,7 +82,7 @@ export default function AdminIpuclariPage() {
       if (editing) await adminApi.updateArticle(editing.id, payload);
       else         await adminApi.createArticle(payload);
       setModal(false);
-      load();
+      load(page);
     } catch (err) { alert(err.message); }
     finally { setSaving(false); }
   };
@@ -80,7 +90,9 @@ export default function AdminIpuclariPage() {
   const handleDelete = async (t) => {
     if (!confirm(`"${t.title}" silinsin mi?`)) return;
     await adminApi.deleteArticle(t.id).catch(() => {});
-    load();
+    const newPage = tips.length === 1 && page > 1 ? page - 1 : page;
+    setPage(newPage);
+    load(newPage);
   };
 
   const getIcon = (t) => t.content?.find?.((b) => b.type === "icon")?.text || "💡";
@@ -91,7 +103,7 @@ export default function AdminIpuclariPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-black text-white mb-1">İpuçları</h1>
-          <p className="text-gray-600 text-sm">{tips.length} ipucu · Üyelere gösterilir</p>
+          <p className="text-gray-600 text-sm">{total} ipucu · Üyelere gösterilir</p>
         </div>
         <button onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition-all"
@@ -135,6 +147,12 @@ export default function AdminIpuclariPage() {
           ))}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onChange={(p) => { setPage(p); load(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+      />
 
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"

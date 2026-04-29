@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import VideoPlayer from "@/components/VideoPlayer";
-import { progressApi, articlesApi, coursesApi } from "@/lib/api";
+import { progressApi, articlesApi, coursesApi, engageApi } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -57,6 +57,19 @@ export default function CourseWatchPage() {
   const [completedSlugs,  setCompletedSlugs]  = useState(new Set());
   const [toggleLoading,   setToggleLoading]   = useState(null);
   const [videoProgressMap,setVideoProgressMap]= useState({});
+
+  // Engage
+  const [note,            setNote]            = useState("");
+  const [noteSaved,       setNoteSaved]       = useState(false);
+  const [noteSaving,      setNoteSaving]      = useState(false);
+  const [myRating,        setMyRating]        = useState(0);
+  const [avgRating,       setAvgRating]       = useState(0);
+  const [ratingCount,     setRatingCount]     = useState(0);
+  const [comments,        setComments]        = useState([]);
+  const [commentText,     setCommentText]     = useState("");
+  const [commentSaving,   setCommentSaving]   = useState(false);
+  const [commentError,    setCommentError]    = useState("");
+  const [videoRatingsMap, setVideoRatingsMap] = useState({});
 
   const allContent     = [...videos.map((v) => v.slug), ...articles.map((a) => String(a.id))];
   const completedCount = allContent.filter((s) => completedSlugs.has(s)).length;
@@ -115,6 +128,76 @@ export default function CourseWatchPage() {
     } catch {}
     finally { setToggleLoading(null); }
   }, [courseSlug]);
+
+  // Tüm videoların puanlarını yükle (sidebar için)
+  useEffect(() => {
+    if (!videos.length) return;
+    Promise.all(
+      videos.map((v) =>
+        engageApi.getRating(v.slug)
+          .then((d) => ({ slug: v.slug, avg: d.avg, count: d.count }))
+          .catch(() => ({ slug: v.slug, avg: 0, count: 0 }))
+      )
+    ).then((results) => {
+      const map = {};
+      results.forEach(({ slug, avg, count }) => { map[slug] = { avg, count }; });
+      setVideoRatingsMap(map);
+    });
+  }, [videos]);
+
+  // Aktif video değişince not + puan + yorumları yükle
+  useEffect(() => {
+    if (!activeVideo) return;
+    engageApi.getNote(activeVideo).then((d) => setNote(d.content || "")).catch(() => {});
+    engageApi.getRating(activeVideo).then((d) => {
+      setMyRating(d.myRating || 0);
+      setAvgRating(d.avg || 0);
+      setRatingCount(d.count || 0);
+    }).catch(() => {});
+    engageApi.getComments(activeVideo).then((d) => setComments(d.comments || [])).catch(() => {});
+    setNoteSaved(false);
+    setCommentText("");
+  }, [activeVideo]);
+
+  const handleSaveNote = async () => {
+    if (!activeVideo) return;
+    setNoteSaving(true);
+    await engageApi.saveNote(activeVideo, note).catch(() => {});
+    setNoteSaving(false);
+    setNoteSaved(true);
+    setTimeout(() => setNoteSaved(false), 2000);
+  };
+
+  const handleRate = async (r) => {
+    if (!activeVideo) return;
+    const d = await engageApi.saveRating(activeVideo, r).catch(() => null);
+    if (d) {
+      setMyRating(d.myRating);
+      setAvgRating(d.avg);
+      setRatingCount(d.count);
+      setVideoRatingsMap((prev) => ({ ...prev, [activeVideo]: { avg: d.avg, count: d.count } }));
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!commentText.trim() || !activeVideo) return;
+    setCommentSaving(true);
+    setCommentError("");
+    try {
+      const c = await engageApi.addComment(activeVideo, commentText);
+      setComments((prev) => [c, ...prev]);
+      setCommentText("");
+    } catch (err) {
+      setCommentError(err.message || "Yorum gönderilemedi.");
+    }
+    setCommentSaving(false);
+  };
+
+  const handleDeleteComment = async (id) => {
+    if (!activeVideo) return;
+    await engageApi.deleteComment(activeVideo, id).catch(() => {});
+    setComments((prev) => prev.filter((c) => c.id !== id));
+  };
 
   const currentVideo = videos.find((v) => v.slug === activeVideo);
   const accent = courseInfo?.accentColor || "#C9A84C";
@@ -222,19 +305,22 @@ export default function CourseWatchPage() {
             )}
 
             {/* Tabs */}
-            {articles.length > 0 && (
-              <div className="flex gap-5 border-b mb-6" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                {[{ key: "video", label: "Genel Bakış" }, { key: "yazi", label: "Yazılar & Şablonlar" }].map((tab) => (
-                  <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                    className={`pb-3 text-sm font-semibold transition-all border-b-2 -mb-px ${
-                      activeTab === tab.key ? "text-white" : "text-gray-600 hover:text-gray-400 border-transparent"
-                    }`}
-                    style={activeTab === tab.key ? { borderBottomColor: accent } : {}}>
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex gap-5 border-b mb-6 overflow-x-auto" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              {[
+                { key: "video",    label: "Genel Bakış" },
+                ...(articles.length > 0 ? [{ key: "yazi", label: "Yazılar & Şablonlar" }] : []),
+                { key: "notlar",   label: "📝 Notlarım" },
+                { key: "yorumlar", label: "💬 Yorumlar" + (comments.length > 0 ? ` (${comments.length})` : "") },
+              ].map((tab) => (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                  className={`pb-3 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+                    activeTab === tab.key ? "text-white" : "text-gray-600 hover:text-gray-400 border-transparent"
+                  }`}
+                  style={activeTab === tab.key ? { borderBottomColor: accent } : {}}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
             {/* Genel bakış */}
             {activeTab === "video" && (
@@ -260,6 +346,111 @@ export default function CourseWatchPage() {
                     Ücretsiz görüşme al →
                   </a>
                 </div>
+              </div>
+            )}
+
+            {/* Notlarım */}
+            {activeTab === "notlar" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-white font-semibold text-sm mb-1">Kişisel Notların</p>
+                  <p className="text-gray-600 text-xs mb-3">Bu notlar sadece sana görünür. Video izlerken aklına gelenleri buraya yaz.</p>
+                  <textarea
+                    value={note}
+                    onChange={(e) => { setNote(e.target.value); setNoteSaved(false); }}
+                    rows={10}
+                    placeholder="Notlarını buraya yaz..."
+                    className="w-full px-4 py-3 rounded-xl text-sm text-white leading-relaxed resize-none focus:outline-none"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", minHeight: 200 }}
+                  />
+                </div>
+                <button
+                  onClick={handleSaveNote}
+                  disabled={noteSaving}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                  style={{ background: noteSaved ? "rgba(52,211,153,0.15)" : `linear-gradient(135deg,${accent},#A8893D)`, color: noteSaved ? "#34d399" : "#fff", border: noteSaved ? "1px solid rgba(52,211,153,0.3)" : "none" }}>
+                  {noteSaving ? "Kaydediliyor..." : noteSaved ? "✓ Kaydedildi" : "Kaydet"}
+                </button>
+              </div>
+            )}
+
+            {/* Yorumlar */}
+            {activeTab === "yorumlar" && (
+              <div className="space-y-6">
+                {/* Puanlama */}
+                <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <p className="text-white font-semibold text-sm mb-3">Bu videoyu puanla</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1">
+                      {[1,2,3,4,5].map((star) => (
+                        <button key={star} onClick={() => handleRate(star)}
+                          className="text-2xl transition-transform hover:scale-110">
+                          <span style={{ color: star <= myRating ? "#F59E0B" : "rgba(255,255,255,0.15)" }}>★</span>
+                        </button>
+                      ))}
+                    </div>
+                    {ratingCount > 0 && (
+                      <span className="text-xs text-gray-600">
+                        Ortalama {avgRating} · {ratingCount} oy
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Yorum yaz */}
+                <div>
+                  <p className="text-white font-semibold text-sm mb-3">Yorum yaz</p>
+                  <textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    rows={3}
+                    placeholder="Düşüncelerini paylaş, soru sor..."
+                    className="w-full px-4 py-3 rounded-xl text-sm text-white resize-none focus:outline-none mb-3"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  />
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={handleAddComment}
+                      disabled={commentSaving || !commentText.trim()}
+                      className="px-4 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
+                      style={{ background: `linear-gradient(135deg,${accent},#A8893D)`, color: "#fff" }}>
+                      {commentSaving ? "Gönderiliyor..." : "Gönder"}
+                    </button>
+                    {commentError && (
+                      <p className="text-red-400 text-xs">{commentError}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Yorum listesi */}
+                {comments.length === 0 ? (
+                  <p className="text-gray-600 text-sm text-center py-8">Henüz yorum yok. İlk yorumu sen yap!</p>
+                ) : (
+                  <div className="space-y-3">
+                    {comments.map((c) => (
+                      <div key={c.id} className="rounded-xl p-4 group"
+                        style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
+                              style={{ background: `linear-gradient(135deg,${accent},#A8893D)` }}>
+                              {c.userName?.[0]?.toUpperCase() || "?"}
+                            </div>
+                            <span className="text-white text-sm font-semibold">{c.userName}</span>
+                            <span className="text-gray-700 text-xs">
+                              {new Date(c.createdAt).toLocaleDateString("tr-TR")}
+                            </span>
+                          </div>
+                          <button onClick={() => handleDeleteComment(c.id)}
+                            className="text-xs text-gray-700 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100">
+                            Sil
+                          </button>
+                        </div>
+                        <p className="text-gray-300 text-sm leading-relaxed">{c.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -362,7 +553,15 @@ export default function CourseWatchPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-xs font-medium leading-snug ${done ? "text-gray-600" : active ? "text-white" : "text-gray-400"}`}>{v.title}</p>
-                      <span className="text-xs text-gray-700">🎬 {v.duration}</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-gray-700">🎬 {v.duration}</span>
+                        {videoRatingsMap[v.slug]?.count > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <span style={{ color: "#F59E0B", fontSize: 11 }}>★</span>
+                            <span className="text-xs text-gray-500">{videoRatingsMap[v.slug].avg}</span>
+                          </span>
+                        )}
+                      </div>
                       {pct > 0 && !done && (
                         <div className="mt-1.5 w-full h-0.5 rounded-full bg-white/8">
                           <div className="h-full rounded-full" style={{ width: `${pct}%`, background: accent }} />

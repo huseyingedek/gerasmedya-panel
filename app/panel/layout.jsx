@@ -7,7 +7,21 @@ import Sidebar from "@/components/Sidebar";
 function PanelGuard({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen,      setSidebarOpen]      = useState(false);  // mobile overlay
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);  // desktop/tablet
+
+  // Tercihi localStorage'dan oku
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebar_collapsed");
+    if (saved === "true") setSidebarCollapsed(true);
+  }, []);
+
+  const toggleCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      localStorage.setItem("sidebar_collapsed", String(!prev));
+      return !prev;
+    });
+  };
 
   useEffect(() => {
     if (!loading && !user) router.push("/auth/login");
@@ -40,7 +54,12 @@ function PanelGuard({ children }) {
       )}
 
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggle={toggleCollapsed}
+      />
 
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -56,9 +75,7 @@ function PanelGuard({ children }) {
               <rect y="12" width="18" height="2" rx="1" fill="currentColor" />
             </svg>
           </button>
-          <span className="font-bold text-white text-sm">
-            geras<span style={{ color: "#D4B86A" }}>panel</span>
-          </span>
+          <LogoMark />
           <div className="w-9" />
         </header>
 
@@ -66,6 +83,13 @@ function PanelGuard({ children }) {
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
+  );
+}
+
+// Mobil top bar'daki küçük logo
+function LogoMark() {
+  return (
+    <img src="/logo.png" alt="Geras Medya" className="h-9 w-auto object-contain" />
   );
 }
 

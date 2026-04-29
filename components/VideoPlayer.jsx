@@ -25,11 +25,12 @@ export default function VideoPlayer({ slug, strategy, title, savedPosition = 0, 
   const hideTimer = useRef(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  function getToken() {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem("geras_token") || "";
-  }
-  const src = `${API_URL}/api/videos/${slug}/stream?token=${getToken()}`;
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("geras_token") || "";
+    setSrc(`${API_URL}/api/videos/${slug}/stream?token=${token}`);
+  }, [slug, API_URL]);
 
   // Pozisyon kaydet
   const savePosition = useCallback(async (pos, dur) => {
@@ -157,7 +158,7 @@ export default function VideoPlayer({ slug, strategy, title, savedPosition = 0, 
         onWaiting={() => setLoading(true)}
         onCanPlay={() => setLoading(false)}
         onEnded={handleEnded}
-        onError={() => { setError(true); setLoading(false); }}
+        onError={() => { if (src) { setError(true); setLoading(false); } }}
         onClick={togglePlay}
         preload="metadata"
       />

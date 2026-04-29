@@ -1,6 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import { adminApi } from "@/lib/api";
+import Pagination from "@/app/panel/components/Pagination";
+
+const PAGE_SIZE = 20;
+const LIMIT = PAGE_SIZE;
 
 // Yeni makale için başlangıç içerik
 const EMPTY_CONTENT = [{ type: "p", text: "" }];
@@ -19,19 +23,24 @@ const PARAGRAPH_TYPES = [
 ];
 
 export default function AdminYazilarPage() {
-  const [articles, setArticles] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [modal,    setModal]    = useState(null);
-  const [courses,  setCourses]  = useState([]);
-  const [form,     setForm]     = useState(EMPTY_FORM);
-  const [saving,   setSaving]   = useState(false);
-  const [editing,  setEditing]  = useState(null);
+  const [articles,   setArticles]   = useState([]);
+  const [total,      setTotal]      = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading,    setLoading]    = useState(true);
+  const [modal,      setModal]      = useState(null);
+  const [courses,    setCourses]    = useState([]);
+  const [form,       setForm]       = useState(EMPTY_FORM);
+  const [saving,     setSaving]     = useState(false);
+  const [editing,    setEditing]    = useState(null);
+  const [page,       setPage]       = useState(1);
 
-  const load = () => {
+  const load = (p = 1) => {
     setLoading(true);
-    Promise.all([adminApi.getArticles(), adminApi.getCourses()])
+    Promise.all([adminApi.getArticles("", p, LIMIT), adminApi.getCourses()])
       .then(([ad, cd]) => {
         setArticles(ad.articles || []);
+        setTotal(ad.total || 0);
+        setTotalPages(ad.totalPages || 1);
         const list = cd.courses || [];
         setCourses(list);
         if (list.length > 0) setForm((f) => ({ ...f, courseSlug: f.courseSlug || list[0].slug }));
@@ -40,7 +49,7 @@ export default function AdminYazilarPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
 
   const openCreate = () => { setForm({ ...EMPTY_FORM, courseSlug: courses[0]?.slug || "" }); setEditing(null); setModal("form"); };
   const openEdit   = (a) => {
@@ -63,7 +72,7 @@ export default function AdminYazilarPage() {
       if (editing) await adminApi.updateArticle(editing.id, form);
       else         await adminApi.createArticle(form);
       setModal(null);
-      load();
+      load(page);
     } catch (err) { alert(err.message); }
     finally { setSaving(false); }
   };
@@ -71,7 +80,10 @@ export default function AdminYazilarPage() {
   const handleDelete = async (a) => {
     if (!confirm(`"${a.title}" silinsin mi?`)) return;
     await adminApi.deleteArticle(a.id).catch(() => {});
-    load();
+    // Son öğe silinirse bir önceki sayfaya git
+    const newPage = articles.length === 1 && page > 1 ? page - 1 : page;
+    setPage(newPage);
+    load(newPage);
   };
 
   // Paragraf işlemleri
@@ -87,7 +99,7 @@ export default function AdminYazilarPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-black text-white mb-1">Yazı Yönetimi</h1>
-          <p className="text-gray-600 text-sm">{articles.length} yazı kayıtlı</p>
+          <p className="text-gray-600 text-sm">{total} yazı kayıtlı</p>
         </div>
         <button onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition-all"
@@ -136,6 +148,12 @@ export default function AdminYazilarPage() {
           ))}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onChange={(p) => { setPage(p); load(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+      />
 
       {/* Modal */}
       {modal === "form" && (

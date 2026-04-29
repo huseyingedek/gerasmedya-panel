@@ -1,23 +1,39 @@
 "use client";
 import { useState, useEffect } from "react";
 import { articlesApi } from "@/lib/api";
+import Pagination from "@/app/panel/components/Pagination";
+
+const PAGE_SIZE = 15;
 
 export default function IpuclariPage() {
-  const [tips,    setTips]    = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [open,    setOpen]    = useState(null);
-  const [filter,  setFilter]  = useState("Tümü");
-
-  useEffect(() => {
-    articlesApi.get("ipuclari")
-      .then((d) => setTips(d.articles || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const [tips,       setTips]       = useState([]);
+  const [allTags,    setAllTags]    = useState(["Tümü"]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading,    setLoading]    = useState(true);
+  const [open,       setOpen]       = useState(null);
+  const [filter,     setFilter]     = useState("Tümü");
+  const [page,       setPage]       = useState(1);
 
   const getBlock = (t, type) => t.content?.find?.((b) => b.type === type)?.text || "";
 
-  const tags = ["Tümü", ...Array.from(new Set(tips.map((t) => getBlock(t, "tag")).filter(Boolean)))];
+  const load = (p = 1) => {
+    setLoading(true);
+    articlesApi.get("ipuclari", p, PAGE_SIZE)
+      .then((d) => {
+        const items = d.articles || [];
+        setTips(items);
+        setTotalPages(d.totalPages || 1);
+        if (p === 1) {
+          setAllTags(["Tümü", ...Array.from(new Set(items.map((t) => getBlock(t, "tag")).filter(Boolean)))]);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(1); }, []);
+
+  // Tag filtresi sunucudan gelen mevcut sayfa üzerinde çalışır
   const filtered = filter === "Tümü" ? tips : tips.filter((t) => getBlock(t, "tag") === filter);
 
   return (
@@ -42,10 +58,10 @@ export default function IpuclariPage() {
       </div>
 
       {/* Tag filtresi */}
-      {tags.length > 1 && (
+      {allTags.length > 1 && (
         <div className="flex gap-2 flex-wrap mb-8">
-          {tags.map((tag) => (
-            <button key={tag} onClick={() => setFilter(tag)}
+          {allTags.map((tag) => (
+            <button key={tag} onClick={() => { setFilter(tag); setPage(1); load(1); }}
               className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
               style={filter === tag
                 ? { background: "rgba(201,168,76,0.18)", color: "#D4B86A", border: "1px solid rgba(201,168,76,0.4)" }
@@ -138,6 +154,12 @@ export default function IpuclariPage() {
           })}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onChange={(p) => { setPage(p); load(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+      />
 
       {/* Footer note */}
       {!loading && filtered.length > 0 && (

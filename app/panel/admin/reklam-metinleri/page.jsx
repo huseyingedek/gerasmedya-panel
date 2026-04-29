@@ -1,150 +1,160 @@
 "use client";
 import { useState, useEffect } from "react";
 import { adminApi } from "@/lib/api";
+import Pagination from "@/app/panel/components/Pagination";
 
-const COURSE_SLUG = "reklam-metinleri";
+const PAGE_SIZE = 15;
+const COURSE_SLUG = "sosyal-medya";
 
-const PLATFORMS = ["Meta Ads", "Google Ads", "LinkedIn Ads", "TikTok Ads", "YouTube Ads", "E-posta", "SMS"];
-const FORMATS   = ["Başlık (Headline)", "Ana Metin (Primary)", "Açıklama", "CTA", "Konu Satırı", "Genel Metin"];
-const SECTORS   = ["E-ticaret", "Hizmet", "Restoran / Kafe", "Gayrimenkul", "Sağlık", "Eğitim", "Teknoloji", "Kozmetik", "Turizm", "Genel"];
-const TONES     = ["Aciliyet", "Merak", "Sosyal Kanıt", "Fayda Odaklı", "Soru", "Rakam / Veri", "Hikaye", "FOMO"];
+const FORMATS = [
+  "Instagram Post",
+  "Instagram Hikaye",
+  "Reels / TikTok Hook",
+  "WhatsApp Mesajı",
+  "Bio Şablonu",
+  "Yorum Yanıtı",
+];
+
+const SECTORS = [
+  "E-ticaret", "Hizmet", "Restoran / Kafe", "Gayrimenkul",
+  "Sağlık", "Eğitim", "Teknoloji", "Kozmetik", "Turizm",
+  "Güzellik Salonu", "Genel",
+];
 
 const EMPTY = {
-  title: "", platform: "Meta Ads", format: "Ana Metin (Primary)",
-  sector: "Genel", tone: "Fayda Odaklı", copyText: "", why: "", order: 0,
+  format: "Instagram Post",
+  sector: "Genel",
+  copy: "",
+  tip: "",
+  order: 0,
 };
 
-export default function AdminReklamMetinleriPage() {
-  const [copies,  setCopies]  = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modal,   setModal]   = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form,    setForm]    = useState(EMPTY);
-  const [saving,  setSaving]  = useState(false);
-  const [filter,  setFilter]  = useState("Tümü");
+export default function AdminSosyalMedyaPage() {
+  const [copies,     setCopies]     = useState([]);
+  const [total,      setTotal]      = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading,    setLoading]    = useState(true);
+  const [modal,      setModal]      = useState(false);
+  const [editing,    setEditing]    = useState(null);
+  const [form,       setForm]       = useState(EMPTY);
+  const [saving,     setSaving]     = useState(false);
+  const [page,       setPage]       = useState(1);
 
-  const load = () => {
+  const load = (p = 1) => {
     setLoading(true);
-    adminApi.getArticles(COURSE_SLUG)
-      .then((d) => setCopies(d.articles || []))
+    adminApi.getArticles(COURSE_SLUG, p, PAGE_SIZE)
+      .then((d) => {
+        setCopies(d.articles || []);
+        setTotal(d.total || 0);
+        setTotalPages(d.totalPages || 1);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
 
   const openCreate = () => { setForm(EMPTY); setEditing(null); setModal(true); };
   const openEdit = (c) => {
     const blocks = Array.isArray(c.content) ? c.content : [];
     setForm({
-      title:    c.title,
-      platform: blocks.find((b) => b.type === "platform")?.text || "Meta Ads",
-      format:   blocks.find((b) => b.type === "format")?.text   || "Ana Metin (Primary)",
-      sector:   blocks.find((b) => b.type === "sector")?.text   || "Genel",
-      tone:     blocks.find((b) => b.type === "tone")?.text     || "Fayda Odaklı",
-      copyText: blocks.find((b) => b.type === "copy")?.text     || "",
-      why:      blocks.find((b) => b.type === "why")?.text      || "",
-      order:    c.order || 0,
+      format: blocks.find((b) => b.type === "format")?.text || "Instagram Post",
+      sector: blocks.find((b) => b.type === "sector")?.text || "Genel",
+      copy:   blocks.find((b) => b.type === "copy")?.text   || "",
+      tip:    blocks.find((b) => b.type === "tip")?.text    || "",
+      order:  c.order || 0,
     });
     setEditing(c);
     setModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.copyText) return alert("Reklam metni zorunlu.");
+    if (!form.copy) return alert("Şablon metni zorunlu.");
     setSaving(true);
-    const title = form.title || `${form.platform} — ${form.format}`;
+    const title = `${form.sector} — ${form.format}`;
     const content = [
-      { type: "platform", text: form.platform },
-      { type: "format",   text: form.format },
-      { type: "sector",   text: form.sector },
-      { type: "tone",     text: form.tone },
-      { type: "copy",     text: form.copyText },
-      { type: "why",      text: form.why },
+      { type: "format", text: form.format },
+      { type: "sector", text: form.sector },
+      { type: "copy",   text: form.copy },
+      { type: "tip",    text: form.tip },
     ];
     try {
       const payload = { courseSlug: COURSE_SLUG, title, duration: "", isTemplate: false, order: form.order, content };
       if (editing) await adminApi.updateArticle(editing.id, payload);
       else         await adminApi.createArticle(payload);
       setModal(false);
-      load();
+      load(page);
     } catch (err) { alert(err.message); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (c) => {
-    if (!confirm(`Bu metin silinsin mi?`)) return;
+    if (!confirm("Bu şablon silinsin mi?")) return;
     await adminApi.deleteArticle(c.id).catch(() => {});
-    load();
+    const newPage = copies.length === 1 && page > 1 ? page - 1 : page;
+    setPage(newPage);
+    load(newPage);
   };
 
   const getBlock = (c, type) => c.content?.find?.((b) => b.type === type)?.text || "";
-  const platformColors = {
-    "Meta Ads": "#1877F2", "Google Ads": "#4285F4", "LinkedIn Ads": "#0A66C2",
-    "TikTok Ads": "#010101", "YouTube Ads": "#FF0000", "E-posta": "#C9A84C", "SMS": "#25D366",
+
+  const FORMAT_ICONS = {
+    "Instagram Post": "📸",
+    "Instagram Hikaye": "⭕",
+    "Reels / TikTok Hook": "🎬",
+    "WhatsApp Mesajı": "💬",
+    "Bio Şablonu": "👤",
+    "Yorum Yanıtı": "💭",
   };
 
-  const allPlatforms = ["Tümü", ...PLATFORMS];
-  const filtered = filter === "Tümü" ? copies : copies.filter((c) => getBlock(c, "platform") === filter);
-
   return (
-    <div className="p-6 md:p-10 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6 md:p-10 max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-black text-white mb-1">Reklam Metin Kütüphanesi</h1>
-          <p className="text-gray-600 text-sm">{copies.length} metin · Üyeler kullanabilir</p>
+          <h1 className="text-2xl font-black text-white mb-1">Sosyal Medya Şablonları</h1>
+          <p className="text-gray-600 text-sm">{total} şablon · Üyeler kullanabilir</p>
         </div>
         <button onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition-all"
           style={{ background: "linear-gradient(135deg,#C9A84C,#A8893D)", color: "#fff" }}>
-          + Yeni Metin
+          + Yeni Şablon
         </button>
-      </div>
-
-      {/* Platform filtresi */}
-      <div className="flex gap-2 flex-wrap mb-6">
-        {allPlatforms.map((p) => (
-          <button key={p} onClick={() => setFilter(p)}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-            style={filter === p
-              ? { background: "rgba(201,168,76,0.2)", color: "#D4B86A", border: "1px solid rgba(201,168,76,0.4)" }
-              : { background: "rgba(255,255,255,0.04)", color: "#6b7280", border: "1px solid rgba(255,255,255,0.08)" }}>
-            {p} {p !== "Tümü" && `(${copies.filter((c) => getBlock(c, "platform") === p).length})`}
-          </button>
-        ))}
       </div>
 
       {loading ? (
         <div className="flex justify-center py-20">
           <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "#C9A84C", borderTopColor: "transparent" }} />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : copies.length === 0 ? (
         <div className="text-center py-20">
-          <div className="text-5xl mb-4">✍️</div>
-          <p className="text-gray-600">Henüz metin yok. Ekle butonuna bas!</p>
+          <div className="text-5xl mb-4">📱</div>
+          <p className="text-gray-600">Henüz şablon yok. Ekle butonuna bas!</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((c) => {
-            const platform = getBlock(c, "platform");
-            const format   = getBlock(c, "format");
-            const sector   = getBlock(c, "sector");
-            const tone     = getBlock(c, "tone");
-            const copy     = getBlock(c, "copy");
+          {copies.map((c) => {
+            const format = getBlock(c, "format");
+            const sector = getBlock(c, "sector");
+            const copy   = getBlock(c, "copy");
             return (
-              <div key={c.id} className="rounded-xl p-5 group"
+              <div key={c.id} className="rounded-xl p-4 group"
                 style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}>
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div className="flex flex-wrap gap-2">
-                    {platform && (
-                      <span className="text-xs px-2.5 py-1 rounded-full font-semibold text-white"
-                        style={{ background: (platformColors[platform] || "#555") + "33", border: `1px solid ${(platformColors[platform] || "#555")}55` }}>
-                        {platform}
+                <div className="flex items-start gap-3">
+                  <span className="text-xl flex-shrink-0 mt-0.5">{FORMAT_ICONS[format] || "📱"}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ background: "rgba(201,168,76,0.12)", color: "#C9A84C", border: "1px solid rgba(201,168,76,0.2)" }}>
+                        {format}
                       </span>
-                    )}
-                    {format && <span className="text-xs px-2 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">{format}</span>}
-                    {sector && sector !== "Genel" && <span className="text-xs px-2 py-1 rounded-full bg-white/5 border border-white/10 text-gray-500">{sector}</span>}
-                    {tone && <span className="text-xs px-2 py-1 rounded-full text-gray-500" style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.15)" }}>🎯 {tone}</span>}
+                      {sector && sector !== "Genel" && (
+                        <span className="text-xs px-2 py-0.5 rounded-full"
+                          style={{ background: "rgba(255,255,255,0.05)", color: "#6b7280", border: "1px solid rgba(255,255,255,0.08)" }}>
+                          {sector}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-xs leading-relaxed line-clamp-2 whitespace-pre-wrap">{copy}</p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => openEdit(c)}
@@ -155,15 +165,17 @@ export default function AdminReklamMetinleriPage() {
                       style={{ border: "1px solid rgba(239,68,68,0.15)" }}>Sil</button>
                   </div>
                 </div>
-                <p className="text-white text-sm leading-relaxed font-medium">{copy}</p>
-                {getBlock(c, "why") && (
-                  <p className="text-gray-600 text-xs mt-2 italic">↳ {getBlock(c, "why")}</p>
-                )}
               </div>
             );
           })}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onChange={(p) => { setPage(p); load(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+      />
 
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -172,68 +184,40 @@ export default function AdminReklamMetinleriPage() {
             style={{ background: "#111", border: "1px solid rgba(255,255,255,0.1)" }}>
 
             <div className="flex items-center justify-between mb-6">
-              <p className="text-white font-bold text-lg">{editing ? "Metin Düzenle" : "Yeni Reklam Metni"}</p>
+              <p className="text-white font-bold text-lg">{editing ? "Şablon Düzenle" : "Yeni Şablon"}</p>
               <button onClick={() => setModal(false)} className="text-gray-600 hover:text-white text-xl">✕</button>
             </div>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={lbl}>Platform</label>
-                  <select value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} className={inp}>
-                    {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div>
                   <label className={lbl}>Format</label>
                   <select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })} className={inp}>
                     {FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={lbl}>Sektör</label>
                   <select value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} className={inp}>
                     {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className={lbl}>Ton / Teknik</label>
-                  <select value={form.tone} onChange={(e) => setForm({ ...form, tone: e.target.value })} className={inp}>
-                    {TONES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
               </div>
 
               <div>
-                <label className={lbl}>Reklam Metni *</label>
-                <textarea value={form.copyText} onChange={(e) => setForm({ ...form, copyText: e.target.value })}
-                  rows={5} className={inp}
-                  placeholder="Buraya reklam metnini yaz. Emojiler, başlık formatları, satış kancaları — olduğu gibi gir." />
+                <label className={lbl}>Şablon Metni *</label>
+                <textarea value={form.copy} onChange={(e) => setForm({ ...form, copy: e.target.value })}
+                  rows={7} className={inp}
+                  placeholder={"Şablon metni buraya. Doldurulacak yerleri [köşeli parantez] içinde yaz.\n\nÖrnek:\n[Ürün adı] ile tanış ✨\n[Tek cümle fayda]\n\n👇 Linkteki adresten hemen al"} />
+                <p className="text-xs text-gray-700 mt-1">Doldurulacak kısımları [köşeli parantez] içinde yaz</p>
               </div>
 
               <div>
-                <label className={lbl}>Neden İşe Yarıyor? (Opsiyonel)</label>
-                <textarea value={form.why} onChange={(e) => setForm({ ...form, why: e.target.value })}
+                <label className={lbl}>💡 Kullanım İpucu (Opsiyonel)</label>
+                <textarea value={form.tip} onChange={(e) => setForm({ ...form, tip: e.target.value })}
                   rows={2} className={inp}
-                  placeholder="Merakı tetikler + sosyal kanıt + aciliyet bir arada kullanılıyor." />
+                  placeholder="Bu şablonu ne zaman ve nasıl kullanacağını yaz. Örn: Yeni ürün lansmanında ilk 24 saatte paylaş." />
               </div>
-
-              {form.copyText && (
-                <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-2 font-semibold">Önizleme</p>
-                  <div className="flex gap-2 flex-wrap mb-2">
-                    <span className="text-xs px-2 py-0.5 rounded-full text-white"
-                      style={{ background: (platformColors[form.platform] || "#555") + "44" }}>{form.platform}</span>
-                    <span className="text-xs text-gray-600">{form.format}</span>
-                    <span className="text-xs text-gray-600">{form.tone}</span>
-                  </div>
-                  <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">{form.copyText}</p>
-                  {form.why && <p className="text-gray-600 text-xs mt-2 italic">↳ {form.why}</p>}
-                </div>
-              )}
 
               <div>
                 <label className={lbl}>Sıra</label>
@@ -248,7 +232,7 @@ export default function AdminReklamMetinleriPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm text-gray-500 hover:text-white transition-all border border-white/10">
                 İptal
               </button>
-              <button onClick={handleSave} disabled={saving || !form.copyText}
+              <button onClick={handleSave} disabled={saving || !form.copy}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 transition-all"
                 style={{ background: "linear-gradient(135deg,#C9A84C,#A8893D)", color: "#fff" }}>
                 {saving ? "Kaydediliyor..." : editing ? "Güncelle" : "Kaydet"}

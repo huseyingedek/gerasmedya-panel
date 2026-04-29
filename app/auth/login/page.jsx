@@ -45,12 +45,12 @@ export default function LoginPage() {
       <div className="mt-6 pt-6 border-t border-white/[0.06] text-center">
         <p className="text-gray-600 text-sm">Henüz üye değil misiniz?</p>
         <a
-          href="https://gerasmedya.com/iletisim"
+          href="https://medya.gerasonline.com/iletisim"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-block mt-2 text-sm text-gold-400 hover:text-gold-300 font-semibold transition-colors"
         >
-          gerasmedya.com üzerinden üyelik alın →
+          medya.gerasonline.com üzerinden üyelik alın →
         </a>
       </div>
     </div>
