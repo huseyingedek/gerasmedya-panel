@@ -88,7 +88,7 @@ export default function SosyalMedyaPage() {
         </h1>
         <p className="text-gray-500 text-sm leading-relaxed max-w-lg">
           Her şablon köşeli parantezlerdeki kısımları kendi bilgilerinle değiştirerek kullanmaya hazır.
-          Instagram'dan WhatsApp'a, bio'dan yorum yanıtına kadar her şey burada.
+          Instagram&apos;dan WhatsApp&apos;a, bio&apos;dan yorum yanıtına kadar her şey burada.
         </p>
       </div>
 
